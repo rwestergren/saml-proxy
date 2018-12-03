@@ -46,6 +46,7 @@ type Config struct {
 	AddAttributesAsHeaders []string      `yaml:"add_attributes_as_headers"`
 	CookieMaxAge           time.Duration `yaml:"cookie_max_age"`
 	LogLevel               string        `yaml:"log_level"`
+	ClientIPSource         string        `yaml:"client_ip_source"`
 }
 type server struct {
 	config Config
@@ -117,7 +118,7 @@ func (s *server) getMiddleware() http.Handler {
 	}
 
 	// rate-limiting layers
-	var extractorSource = "client.ip"
+	var extractorSource = s.config.ClientIPSource
 	extractor, err := utils.NewExtractor(extractorSource)
 	if err != nil {
 		log.WithFields(log.Fields{"extractor": extractorSource,
@@ -230,7 +231,7 @@ func main() {
 	// This endpoint handles SAML auth flow
 	router.Any("/saml/*", echo.WrapHandler(samlSP))
 	// These endpoints require valid session cookie
-	router.Any("/*", echo.WrapHandler(samlSP.RequireAccount(s.addSamlHeaders(s.getMiddleware()))))
+	router.Any("/*", echo.WrapHandler(samlSP.RequireAccount(s.addSamlHeaders(s.getMiddleware()))), NoCache())
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", s.config.ListenInterface, s.config.ListenPort),
